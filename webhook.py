@@ -4,16 +4,14 @@ import time
 from flask import Flask, request, jsonify, abort
 
 app = Flask(__name__)
-
-# Replace this with your actual Zoom Webhook secret
 ZOOM_WEBHOOK_SECRET = "Odgy7ir4R-uHMRs1wRB_0w"
 
 def verify_zoom_signature(request):
     timestamp = request.headers.get('x-zm-request-timestamp')
     if not timestamp:
+        print("Missing timestamp header")
         return False
 
-    # Prevent replay attacks
     current_ts = int(time.time())
     req_ts = int(timestamp)
     if abs(current_ts - req_ts) > 300:
@@ -32,17 +30,23 @@ def verify_zoom_signature(request):
     expected_signature = f"v0={computed_hash}"
     received_signature = request.headers.get('x-zm-signature')
 
-    print(f"[Zoom Signature] Expected: {expected_signature}")
-    print(f"[Zoom Signature] Received: {received_signature}")
+    print(f"Timestamp: {timestamp}")
+    print(f"Expected Signature: {expected_signature}")
+    print(f"Received Signature: {received_signature}")
 
     return hmac.compare_digest(expected_signature, received_signature)
 
 @app.route('/meetingbaas/webhook', methods=['POST'])
-def zoom_webhook():
-    data = request.get_json()
+def webhook():
+    if not verify_zoom_signature(request):
+        abort(401, description="Unauthorized request")
 
-    # Handle initial Zoom URL validation (no signature verification needed)
-    if data and data.get('event') == 'endpoint.url_validation':
+    data = request.json
+    if not data:
+        abort(400, description="Invalid JSON payload")
+
+    event = data.get('event')
+    if event == 'endpoint.url_validation':
         plain_token = data['payload']['plainToken']
         encrypted_token = hmac.new(
             ZOOM_WEBHOOK_SECRET.encode('utf-8'),
@@ -50,24 +54,15 @@ def zoom_webhook():
             hashlib.sha256
         ).hexdigest()
 
-        print("Handling Zoom URL validation...")
         return jsonify({
             'plainToken': plain_token,
             'encryptedToken': encrypted_token
         })
 
-    # Verify signature for all other events
-    if not verify_zoom_signature(request):
-        abort(401, description="Unauthorized request")
-
-    # Handle actual event data
-    print("✅ Received Zoom Event:")
-    print(data)
-
+    print("Received Zoom event:", data)
     return jsonify({'status': 'received'}), 200
 
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))
-    print(f"🚀 Starting server on port {port}")
     app.run(host='0.0.0.0', port=port)
