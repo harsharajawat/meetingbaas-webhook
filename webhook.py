@@ -2,7 +2,8 @@ from flask import Flask, request, jsonify, make_response
 
 app = Flask(__name__)
 
-@app.route('/meetingbaas/webhook', methods=['POST'])
+@app.route('/meetingbaas/webhook', methods=['GET', 'POST'])
+
 def webhook():
 
     if request.method == 'GET':
