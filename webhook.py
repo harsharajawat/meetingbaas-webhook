@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 
 app = Flask(__name__)
 
@@ -6,8 +6,14 @@ app = Flask(__name__)
 def webhook():
 
     if request.method == 'GET':
-        return jsonify({'message': 'Zoom webhook verified'}), 200
-
+        # Zoom webhook URL validation
+        validation_token = request.args.get('validationToken')
+        if validation_token:
+            response = make_response(validation_token, 200)
+            response.headers['Content-Type'] = 'text/plain'
+            return response
+        else:
+            return "Missing validation token", 400
     data = request.json
     print('Received:', data)
     return {'status': 'received'}, 200
