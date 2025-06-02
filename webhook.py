@@ -1,9 +1,13 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
 @app.route('/meetingbaas/webhook', methods=['POST'])
 def webhook():
+
+    if request.method == 'GET':
+        return jsonify({'message': 'Zoom webhook verified'}), 200
+
     data = request.json
     print('Received:', data)
     return {'status': 'received'}, 200
